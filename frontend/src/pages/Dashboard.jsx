@@ -20,13 +20,13 @@ export default function Dashboard() {
   const [resumes, setResumes] = useState([]);
 
   const fetchResumes = async () => {
-    const res = await api.get("/resume");
+    const res = await api.get("/resumes");
     setResumes(res.data);
   };
 
   const handleDelete = async (id) => {
     if (!confirm("Delete this resume version?")) return;
-    await api.delete(`/resume/${id}`);
+    await api.delete(`/resumes/${id}`);
     fetchResumes();
   };
 

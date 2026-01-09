@@ -85,7 +85,7 @@ export default function UploadResume({ onUpload }) {
 
     try {
       setLoading(true);
-      await api.post("/resume/upload", formData);
+      await api.post("/resumes/upload", formData);
       onUpload();
 
       setTitle("");
