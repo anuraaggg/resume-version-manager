@@ -95,6 +95,16 @@ exports.deleteResumeVersion = async (req, res) => {
       return res.status(404).json({ message: "Resume not found" });
     }
 
+    // Delete from Cloudinary
+    if (resume.fileUrl) {
+      const publicId = `resumes/${resume.fileUrl.split('/').pop().split('.')[0]}`;
+      try {
+        await cloudinary.uploader.destroy(publicId, { resource_type: "raw" });
+      } catch (cloudinaryError) {
+        console.warn("Failed to delete file from Cloudinary:", cloudinaryError);
+      }
+    }
+
     res.json({ message: "Resume version deleted" });
   } catch (error) {
     res.status(500).json({ message: error.message });
