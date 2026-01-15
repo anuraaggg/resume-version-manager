@@ -6,7 +6,13 @@ const resumeRoutes = require("./routes/resume.routes");
 
 const app = express();
 
-app.use(cors());
+// CORS: restrict to frontend origin
+const corsOptions = {
+  origin: process.env.CORS_ORIGIN || "http://localhost:5173",
+  optionsSuccessStatus: 200,
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 
 app.use("/api/auth", authRoutes);
