@@ -8,9 +8,20 @@ const resumeRoutes = require("./routes/resume.routes");
 
 const app = express();
 
-// CORS: restrict to frontend origin
+// CORS: allow one or more frontend origins from env
+const allowedOrigins = (process.env.CORS_ORIGIN || "http://localhost:5173,https://resume-version-manager.vercel.app")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN || "http://localhost:5173",
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`CORS blocked for origin: ${origin}`));
+  },
   optionsSuccessStatus: 200,
 };
 
