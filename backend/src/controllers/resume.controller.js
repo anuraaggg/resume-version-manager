@@ -98,10 +98,12 @@ exports.deleteResumeVersion = async (req, res) => {
     }
 
     // Delete from Cloudinary
-    if (resume.fileUrl) {
-      const publicId = `resumes/${resume.fileUrl.split('/').pop().split('.')[0]}`;
+    if (resume.publicId) {
       try {
-        await cloudinary.uploader.destroy(publicId, { resource_type: "raw" });
+        await cloudinary.uploader.destroy(resume.publicId, {
+          resource_type: "raw",
+          type: "authenticated",
+        });
       } catch (cloudinaryError) {
         console.warn("Failed to delete file from Cloudinary:", cloudinaryError);
       }
