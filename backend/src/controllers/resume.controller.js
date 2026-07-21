@@ -24,15 +24,16 @@ exports.uploadResume = async (req, res) => {
 
     const nextVersion = latestResume ? latestResume.version + 1 : 1;
 
-    // Cloudinary upload
+    // Cloudinary upload (authenticated delivery type: files are not
+    // publicly reachable, viewing requires a signed URL - see getResumeUrl)
     const streamUpload = (buffer) =>
       new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
           {
             resource_type: "raw",
+            type: "authenticated",
             folder: "resumes",
             format: "pdf",
-            access_mode: "public",
             public_id: `${req.userId}_${title.replace(/\s+/g, "_")}_v${nextVersion}`,
           },
           (error, result) => {
@@ -52,6 +53,7 @@ exports.uploadResume = async (req, res) => {
       appliedDate: appliedDate || "",
       version: nextVersion,
       fileUrl: uploadResult.secure_url,
+      publicId: uploadResult.public_id,
       tags: tags ? tags.split(",").map((t) => t.trim()) : [],
       notes: notes || "",
     });
