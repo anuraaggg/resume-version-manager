@@ -34,6 +34,11 @@ const resumeSchema = new mongoose.Schema(
       required: true,
     },
 
+    publicId: {
+      type: String,
+      required: true,
+    },
+
     tags: {
       type: [String],
       default: [],
