@@ -30,6 +30,14 @@ export default function Dashboard() {
     fetchResumes();
   };
 
+  const handleView = async (id) => {
+    // Open the tab synchronously (in the click's call stack) so browsers
+    // don't treat the later navigation as a blocked popup.
+    const viewer = window.open("", "_blank");
+    const res = await api.get(`/resumes/${id}/url`);
+    if (viewer) viewer.location = res.data.url;
+  };
+
   useEffect(() => {
     fetchResumes();
   }, []);
@@ -140,13 +148,12 @@ export default function Dashboard() {
 
         {/* Actions */}
         <div className="px-6 py-4 flex gap-3">
-          <a
-            href={latest.fileUrl}
-            target="_blank"
+          <button
+            onClick={() => handleView(latest._id)}
             className="flex-1 px-4 py-2.5 bg-gray-900 hover:bg-gray-800 border border-gray-700 hover:border-gray-600 text-white rounded-lg text-sm font-semibold transition-all transform hover:scale-105 active:scale-95"
           >
             View
-          </a>
+          </button>
 
           <button
             onClick={() => handleDelete(latest._id)}
