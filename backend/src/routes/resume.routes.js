@@ -17,6 +17,11 @@ const { getUserResumes } = require("../controllers/resume.controller");
 // get all resumes for dashboard
 router.get("/", authMiddleware, getUserResumes);
 
+const { getResumeUrl } = require("../controllers/resume.controller");
+
+// get a short-lived signed URL to view/download a resume
+router.get("/:id/url", authMiddleware, getResumeUrl);
+
 const { deleteResumeVersion } = require("../controllers/resume.controller");
 
 router.delete("/:id", authMiddleware, deleteResumeVersion);

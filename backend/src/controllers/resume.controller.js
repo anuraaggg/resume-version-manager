@@ -82,6 +82,33 @@ exports.getUserResumes = async (req, res) => {
 };
 
 // ===============================
+// Get a short-lived signed URL to view/download a resume
+// ===============================
+exports.getResumeUrl = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const resume = await Resume.findOne({ _id: id, userId: req.userId });
+
+    if (!resume) {
+      return res.status(404).json({ message: "Resume not found" });
+    }
+
+    const url = cloudinary.url(resume.publicId, {
+      resource_type: "raw",
+      type: "authenticated",
+      format: "pdf",
+      sign_url: true,
+      expires_at: Math.floor(Date.now() / 1000) + 5 * 60,
+    });
+
+    res.json({ url });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ===============================
 // Delete resume
 // ===============================
 exports.deleteResumeVersion = async (req, res) => {
