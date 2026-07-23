@@ -2,6 +2,12 @@
 
 A full-stack app to manage and version resume uploads.
 
+## Features
+- Email/password auth with JWT (rate-limited to 5 attempts / 15 min)
+- Versioned resume uploads (PDF only, 10MB max) stored privately in Cloudinary
+- Time-limited signed URLs for viewing resumes — no public file access
+- Rate-limited resume endpoints (100 req / 15 min) and sanitized error responses (no internal error details leak to clients)
+
 ## Structure
 - backend: Express API with MongoDB, JWT, Cloudinary
 - frontend: React + Vite UI, Tailwind-ready
