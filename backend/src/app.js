@@ -69,8 +69,11 @@ app.use((err, req, res, next) => {
     return res.status(400).json({ message: err.message });
   }
 
+  // Only surface err.message for errors we deliberately raised with a
+  // statusCode (e.g. CORS rejection); unexpected errors get a generic
+  // message so internal details (DB, Cloudinary, etc.) aren't exposed.
   res.status(err.statusCode || 500).json({
-    message: err.message || "Internal server error",
+    message: err.statusCode ? err.message : "Internal server error",
   });
 });
 

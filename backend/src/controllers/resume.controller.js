@@ -61,7 +61,7 @@ exports.uploadResume = async (req, res) => {
     res.status(201).json(resume);
   } catch (error) {
     console.error("UPLOAD ERROR:", error);
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: "Failed to upload resume" });
   }
 };
 
@@ -77,7 +77,8 @@ exports.getUserResumes = async (req, res) => {
 
     res.json(resumes);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("GET RESUMES ERROR:", error);
+    res.status(500).json({ message: "Failed to fetch resumes" });
   }
 };
 
@@ -104,7 +105,8 @@ exports.getResumeUrl = async (req, res) => {
 
     res.json({ url });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("GET RESUME URL ERROR:", error);
+    res.status(500).json({ message: "Failed to generate resume URL" });
   }
 };
 
@@ -138,6 +140,7 @@ exports.deleteResumeVersion = async (req, res) => {
 
     res.json({ message: "Resume version deleted" });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("DELETE RESUME ERROR:", error);
+    res.status(500).json({ message: "Failed to delete resume" });
   }
 };
