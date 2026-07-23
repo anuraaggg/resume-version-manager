@@ -36,8 +36,15 @@ const authLimiter = rateLimit({
   message: "Too many login attempts, please try again later",
 });
 
+// Rate limit for resume endpoints (100 requests per 15 minutes)
+const resumeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: "Too many requests, please try again later",
+});
+
 app.use("/api/auth", authLimiter, authRoutes);
-app.use("/api/resumes", resumeRoutes);
+app.use("/api/resumes", resumeLimiter, resumeRoutes);
 
 app.get("/", (req, res) => {
   res.send("Resume Version Manager API running");
