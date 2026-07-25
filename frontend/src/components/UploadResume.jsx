@@ -95,6 +95,8 @@ export default function UploadResume({ onUpload }) {
       setCustomTags("");
       setNotes("");
       setFile(null);
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to upload resume");
     } finally {
       setLoading(false);
     }
