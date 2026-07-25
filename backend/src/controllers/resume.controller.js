@@ -24,6 +24,10 @@ exports.uploadResume = async (req, res) => {
 
     const nextVersion = latestResume ? latestResume.version + 1 : 1;
 
+    // Strip anything but alphanumerics/dash/underscore so the title can't
+    // inject "/" or ".." segments into the Cloudinary public_id path.
+    const safeTitle = title.trim().replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_-]/g, "");
+
     // Cloudinary upload (authenticated delivery type: files are not
     // publicly reachable, viewing requires a signed URL - see getResumeUrl)
     const streamUpload = (buffer) =>
@@ -34,7 +38,7 @@ exports.uploadResume = async (req, res) => {
             type: "authenticated",
             folder: "resumes",
             format: "pdf",
-            public_id: `${req.userId}_${title.replace(/\s+/g, "_")}_v${nextVersion}`,
+            public_id: `${req.userId}_${safeTitle}_v${nextVersion}`,
           },
           (error, result) => {
             if (error) reject(error);
