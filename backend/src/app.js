@@ -9,6 +9,11 @@ const resumeRoutes = require("./routes/resume.routes");
 
 const app = express();
 
+// Trust the first hop reverse proxy (Render/Railway/Heroku/etc.) so
+// express-rate-limit sees the real client IP instead of the proxy's,
+// and so it doesn't throw on the X-Forwarded-For header those hosts add.
+app.set("trust proxy", 1);
+
 // CORS: allow one or more frontend origins from env
 const allowedOrigins = (process.env.CORS_ORIGIN || "http://localhost:5173,https://resume-version-manager.vercel.app")
   .split(",")
