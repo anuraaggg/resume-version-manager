@@ -18,6 +18,10 @@ function formatMonthYear(value) {
 
 export default function Dashboard() {
   const [resumes, setResumes] = useState([]);
+  const [expandedTitles, setExpandedTitles] = useState({});
+
+  const toggleExpanded = (title) =>
+    setExpandedTitles((prev) => ({ ...prev, [title]: !prev[title] }));
 
   const fetchResumes = async () => {
     const res = await api.get("/resumes");
@@ -92,10 +96,10 @@ export default function Dashboard() {
 {/* GRID */}
 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-12">
   {Object.keys(resumesByTitle).map((title) => {
-    // Pick latest version ONLY
-    const latest = resumesByTitle[title].sort(
-      (a, b) => b.version - a.version
-    )[0];
+    const versions = [...resumesByTitle[title]].sort((a, b) => b.version - a.version);
+    const latest = versions[0];
+    const olderVersions = versions.slice(1);
+    const isExpanded = expandedTitles[title];
 
     return (
       <div
@@ -104,20 +108,18 @@ export default function Dashboard() {
       >
         {/* Header */}
         <div className="border-b border-gray-800 px-6 py-5">
-          <h2 className="text-xl font-bold text-white truncate group-hover:text-gray-200 transition-colors">
-            {title}
-          </h2>
+          <div className="flex items-start justify-between gap-2">
+            <h2 className="text-xl font-bold text-white truncate group-hover:text-gray-200 transition-colors">
+              {title}
+            </h2>
+            <span className="text-xs text-gray-500 font-mono shrink-0 mt-1">v{latest.version}</span>
+          </div>
 
           {(latest.company || latest.appliedDate) && (
             <p className="text-xs text-gray-400 mt-2 space-x-2">
               {latest.company && <span className="text-gray-200 font-medium">{latest.company}</span>}
               {latest.company && latest.appliedDate && <span>·</span>}
-              {latest.appliedDate && (
-                <span>{new Date(latest.appliedDate + "-01").toLocaleString(
-                  "default",
-                  { month: "short", year: "numeric" }
-                )}</span>
-              )}
+              {latest.appliedDate && <span>{formatMonthYear(latest.appliedDate)}</span>}
             </p>
           )}
         </div>
@@ -162,6 +164,51 @@ export default function Dashboard() {
             Delete
           </button>
         </div>
+
+        {/* Version history */}
+        {olderVersions.length > 0 && (
+          <div className="border-t border-gray-800">
+            <button
+              onClick={() => toggleExpanded(title)}
+              className="w-full px-6 py-3 text-xs text-gray-400 hover:text-gray-200 flex items-center justify-between transition-colors"
+            >
+              <span>
+                {isExpanded ? "Hide" : "Show"} {olderVersions.length} earlier version
+                {olderVersions.length > 1 ? "s" : ""}
+              </span>
+              <span>{isExpanded ? "−" : "+"}</span>
+            </button>
+
+            {isExpanded && (
+              <div className="divide-y divide-gray-900">
+                {olderVersions.map((v) => (
+                  <div key={v._id} className="px-6 py-3 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm text-gray-300 font-mono">v{v.version}</p>
+                      {v.appliedDate && (
+                        <p className="text-xs text-gray-500">{formatMonthYear(v.appliedDate)}</p>
+                      )}
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <button
+                        onClick={() => handleView(v._id)}
+                        className="px-3 py-1.5 text-xs bg-gray-900 hover:bg-gray-800 border border-gray-700 text-white rounded-lg transition-all"
+                      >
+                        View
+                      </button>
+                      <button
+                        onClick={() => handleDelete(v._id)}
+                        className="px-3 py-1.5 text-xs bg-black hover:bg-gray-900 border border-gray-700 text-white rounded-lg transition-all"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     );
   })}
