@@ -60,6 +60,7 @@ export default function Login() {
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          autoComplete={isRegister ? "email" : "username"}
           required
         />
 
@@ -69,6 +70,9 @@ export default function Login() {
           placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          minLength={8}
+          maxLength={128}
+          autoComplete={isRegister ? "new-password" : "current-password"}
           required
         />
 
