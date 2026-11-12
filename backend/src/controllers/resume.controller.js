@@ -1,6 +1,12 @@
 const Resume = require("../models/Resume");
 const cloudinary = require("../config/cloudinary");
 
+const MAX_TITLE_LENGTH = 120;
+const MAX_COMPANY_LENGTH = 120;
+const MAX_NOTES_LENGTH = 5000;
+const MAX_TAGS = 20;
+const MAX_TAG_LENGTH = 40;
+
 const destroyUploadedAsset = async (publicId) => {
   if (!publicId) return;
 
@@ -23,7 +29,7 @@ exports.uploadResume = async (req, res) => {
   try {
     const { title, company, appliedDate, tags, notes } = req.body;
 
-    if (!title) {
+    if (typeof title !== "string" || !title.trim()) {
       return res.status(400).json({ message: "Title is required" });
     }
 
@@ -31,8 +37,40 @@ exports.uploadResume = async (req, res) => {
       return res.status(400).json({ message: "No PDF file uploaded" });
     }
 
+    if (!req.file.buffer.subarray(0, 1024).includes(Buffer.from("%PDF-"))) {
+      return res.status(400).json({ message: "Uploaded file is not a valid PDF" });
+    }
+
     const normalizedTitle = title.trim();
-    const safeTitle = normalizedTitle.replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_-]/g, "");
+    if (normalizedTitle.length > MAX_TITLE_LENGTH) {
+      return res.status(400).json({ message: "Title must be 120 characters or fewer" });
+    }
+
+    const normalizedCompany = typeof company === "string" ? company.trim() : "";
+    if (normalizedCompany.length > MAX_COMPANY_LENGTH) {
+      return res.status(400).json({ message: "Company must be 120 characters or fewer" });
+    }
+
+    const normalizedNotes = typeof notes === "string" ? notes.trim() : "";
+    if (normalizedNotes.length > MAX_NOTES_LENGTH) {
+      return res.status(400).json({ message: "Notes must be 5000 characters or fewer" });
+    }
+
+    if (appliedDate && !/^\d{4}-(0[1-9]|1[0-2])$/.test(appliedDate)) {
+      return res.status(400).json({ message: "Applied date must use YYYY-MM format" });
+    }
+
+    const normalizedTags = typeof tags === "string"
+      ? [...new Set(tags.split(",").map((tag) => tag.trim()).filter(Boolean))]
+      : [];
+    if (
+      normalizedTags.length > MAX_TAGS
+      || normalizedTags.some((tag) => tag.length > MAX_TAG_LENGTH)
+    ) {
+      return res.status(400).json({ message: "Resume tags are too long or too numerous" });
+    }
+
+    const safeTitle = normalizedTitle.replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_-]/g, "") || "resume";
     const streamUpload = (publicId) =>
       new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
@@ -65,13 +103,13 @@ exports.uploadResume = async (req, res) => {
         const resume = await Resume.create({
           userId: req.userId,
           title: normalizedTitle,
-          company: company || "",
+          company: normalizedCompany,
           appliedDate: appliedDate || "",
           version: nextVersion,
           fileUrl: uploadResult.secure_url,
           publicId: uploadResult.public_id,
-          tags: tags ? tags.split(",").map((t) => t.trim()) : [],
-          notes: notes || "",
+          tags: normalizedTags,
+          notes: normalizedNotes,
         });
 
         return res.status(201).json(resume);
