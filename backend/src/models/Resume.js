@@ -52,4 +52,6 @@ const resumeSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+resumeSchema.index({ userId: 1, title: 1, version: 1 }, { unique: true });
+
 module.exports = mongoose.model("Resume", resumeSchema);

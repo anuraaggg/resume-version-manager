@@ -5,6 +5,8 @@ const cloudinary = require("../config/cloudinary");
 // Upload Resume (PDF, versioned)
 // ===============================
 exports.uploadResume = async (req, res) => {
+  let uploadedPublicId;
+
   try {
     const { title, company, appliedDate, tags, notes } = req.body;
 
@@ -16,21 +18,9 @@ exports.uploadResume = async (req, res) => {
       return res.status(400).json({ message: "No PDF file uploaded" });
     }
 
-    // Find latest version
-    const latestResume = await Resume.findOne({
-      userId: req.userId,
-      title,
-    }).sort({ version: -1 });
-
-    const nextVersion = latestResume ? latestResume.version + 1 : 1;
-
-    // Strip anything but alphanumerics/dash/underscore so the title can't
-    // inject "/" or ".." segments into the Cloudinary public_id path.
-    const safeTitle = title.trim().replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_-]/g, "");
-
-    // Cloudinary upload (authenticated delivery type: files are not
-    // publicly reachable, viewing requires a signed URL - see getResumeUrl)
-    const streamUpload = (buffer) =>
+    const normalizedTitle = title.trim();
+    const safeTitle = normalizedTitle.replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_-]/g, "");
+    const streamUpload = (publicId) =>
       new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
           {
@@ -38,33 +28,66 @@ exports.uploadResume = async (req, res) => {
             type: "authenticated",
             folder: "resumes",
             format: "pdf",
-            public_id: `${req.userId}_${safeTitle}_v${nextVersion}`,
+            public_id: publicId,
           },
           (error, result) => {
             if (error) reject(error);
             else resolve(result);
           }
         );
-        stream.end(buffer);
+        stream.end(req.file.buffer);
       });
 
-    const uploadResult = await streamUpload(req.file.buffer);
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const latestResume = await Resume.findOne({
+        userId: req.userId,
+        title: normalizedTitle,
+      }).sort({ version: -1 });
+      const nextVersion = latestResume ? latestResume.version + 1 : 1;
+      const publicId = `${req.userId}_${safeTitle}_v${nextVersion}`;
+      const uploadResult = await streamUpload(publicId);
+      uploadedPublicId = uploadResult.public_id;
 
-    const resume = await Resume.create({
-      userId: req.userId,
-      title,
-      company: company || "",
-      appliedDate: appliedDate || "",
-      version: nextVersion,
-      fileUrl: uploadResult.secure_url,
-      publicId: uploadResult.public_id,
-      tags: tags ? tags.split(",").map((t) => t.trim()) : [],
-      notes: notes || "",
-    });
+      try {
+        const resume = await Resume.create({
+          userId: req.userId,
+          title: normalizedTitle,
+          company: company || "",
+          appliedDate: appliedDate || "",
+          version: nextVersion,
+          fileUrl: uploadResult.secure_url,
+          publicId: uploadResult.public_id,
+          tags: tags ? tags.split(",").map((t) => t.trim()) : [],
+          notes: notes || "",
+        });
 
-    res.status(201).json(resume);
+        return res.status(201).json(resume);
+      } catch (error) {
+        await cloudinary.uploader.destroy(uploadedPublicId, {
+          resource_type: "raw",
+          type: "authenticated",
+        });
+        uploadedPublicId = undefined;
+
+        if (error.code !== 11000) {
+          throw error;
+        }
+      }
+    }
+
+    return res.status(409).json({ message: "Could not assign a unique resume version" });
   } catch (error) {
     console.error("UPLOAD ERROR:", error);
+    if (uploadedPublicId) {
+      try {
+        await cloudinary.uploader.destroy(uploadedPublicId, {
+          resource_type: "raw",
+          type: "authenticated",
+        });
+      } catch (cleanupError) {
+        console.error("UPLOAD CLEANUP ERROR:", cleanupError);
+      }
+    }
     res.status(500).json({ message: "Failed to upload resume" });
   }
 };
