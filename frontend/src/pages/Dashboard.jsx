@@ -43,7 +43,20 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    fetchResumes();
+    let ignore = false;
+
+    const loadResumes = async () => {
+      const res = await api.get("/resumes");
+      if (!ignore) {
+        setResumes(res.data);
+      }
+    };
+
+    loadResumes();
+
+    return () => {
+      ignore = true;
+    };
   }, []);
 
   /* Group by title */
