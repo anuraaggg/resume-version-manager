@@ -1,6 +1,19 @@
 const Resume = require("../models/Resume");
 const cloudinary = require("../config/cloudinary");
 
+const destroyUploadedAsset = async (publicId) => {
+  if (!publicId) return;
+
+  try {
+    await cloudinary.uploader.destroy(publicId, {
+      resource_type: "raw",
+      type: "authenticated",
+    });
+  } catch (error) {
+    console.error("UPLOAD CLEANUP ERROR:", error);
+  }
+};
+
 // ===============================
 // Upload Resume (PDF, versioned)
 // ===============================
@@ -63,10 +76,7 @@ exports.uploadResume = async (req, res) => {
 
         return res.status(201).json(resume);
       } catch (error) {
-        await cloudinary.uploader.destroy(uploadedPublicId, {
-          resource_type: "raw",
-          type: "authenticated",
-        });
+        await destroyUploadedAsset(uploadedPublicId);
         uploadedPublicId = undefined;
 
         if (error.code !== 11000) {
@@ -79,14 +89,7 @@ exports.uploadResume = async (req, res) => {
   } catch (error) {
     console.error("UPLOAD ERROR:", error);
     if (uploadedPublicId) {
-      try {
-        await cloudinary.uploader.destroy(uploadedPublicId, {
-          resource_type: "raw",
-          type: "authenticated",
-        });
-      } catch (cleanupError) {
-        console.error("UPLOAD CLEANUP ERROR:", cleanupError);
-      }
+      await destroyUploadedAsset(uploadedPublicId);
     }
     res.status(500).json({ message: "Failed to upload resume" });
   }
