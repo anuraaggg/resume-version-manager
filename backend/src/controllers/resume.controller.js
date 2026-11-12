@@ -23,7 +23,7 @@ const destroyUploadedAsset = async (publicId) => {
 // ===============================
 // Upload Resume (PDF, versioned)
 // ===============================
-exports.uploadResume = async (req, res) => {
+exports.uploadResume = async (req, res, next) => {
   let uploadedPublicId;
 
   try {
@@ -129,14 +129,14 @@ exports.uploadResume = async (req, res) => {
     if (uploadedPublicId) {
       await destroyUploadedAsset(uploadedPublicId);
     }
-    res.status(500).json({ message: "Failed to upload resume" });
+    next(error);
   }
 };
 
 // ===============================
 // Get all resumes
 // ===============================
-exports.getUserResumes = async (req, res) => {
+exports.getUserResumes = async (req, res, next) => {
   try {
     const resumes = await Resume.find({ userId: req.userId }).sort({
       appliedDate: -1,
@@ -145,15 +145,14 @@ exports.getUserResumes = async (req, res) => {
 
     res.json(resumes);
   } catch (error) {
-    console.error("GET RESUMES ERROR:", error);
-    res.status(500).json({ message: "Failed to fetch resumes" });
+    next(error);
   }
 };
 
 // ===============================
 // Get a short-lived signed URL to view/download a resume
 // ===============================
-exports.getResumeUrl = async (req, res) => {
+exports.getResumeUrl = async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -173,15 +172,14 @@ exports.getResumeUrl = async (req, res) => {
 
     res.json({ url });
   } catch (error) {
-    console.error("GET RESUME URL ERROR:", error);
-    res.status(500).json({ message: "Failed to generate resume URL" });
+    next(error);
   }
 };
 
 // ===============================
 // Delete resume
 // ===============================
-exports.deleteResumeVersion = async (req, res) => {
+exports.deleteResumeVersion = async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -208,7 +206,6 @@ exports.deleteResumeVersion = async (req, res) => {
 
     res.json({ message: "Resume version deleted" });
   } catch (error) {
-    console.error("DELETE RESUME ERROR:", error);
-    res.status(500).json({ message: "Failed to delete resume" });
+    next(error);
   }
 };

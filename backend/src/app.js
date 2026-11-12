@@ -64,7 +64,7 @@ app.use((req, res) => {
 
 // Global error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  console.error("REQUEST ERROR:", err);
 
   // Multer file size error
   if (err.code === "LIMIT_FILE_SIZE") {
@@ -76,11 +76,21 @@ app.use((err, req, res, next) => {
     return res.status(400).json({ message: err.message });
   }
 
-  // Only surface err.message for errors we deliberately raised with a
-  // statusCode (e.g. CORS rejection); unexpected errors get a generic
-  // message so internal details (DB, Cloudinary, etc.) aren't exposed.
-  res.status(err.statusCode || 500).json({
-    message: err.statusCode ? err.message : "Internal server error",
+  if (err.name === "CastError") {
+    return res.status(400).json({ message: "Invalid resource identifier" });
+  }
+
+  if (err.name === "ValidationError") {
+    return res.status(400).json({ message: "Invalid request data" });
+  }
+
+  if (err.code === 11000) {
+    return res.status(409).json({ message: "A resource with those values already exists" });
+  }
+
+  const statusCode = Number.isInteger(err.statusCode) ? err.statusCode : 500;
+  return res.status(statusCode).json({
+    message: statusCode < 500 && err.message ? err.message : "Internal server error",
   });
 });
 
