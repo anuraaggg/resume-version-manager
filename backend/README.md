@@ -8,7 +8,7 @@ Create `.env` with these keys:
 ```
 PORT=5000
 MONGO_URI=YOUR_MONGODB_URI
-JWT_SECRET=your_jwt_secret
+JWT_SECRET=use-a-random-secret-at-least-32-characters-long
 CORS_ORIGIN=http://localhost:5173
 CLOUDINARY_CLOUD_NAME=your_cloud_name
 CLOUDINARY_API_KEY=your_api_key
@@ -32,3 +32,6 @@ CORS_ORIGIN=http://localhost:5173,https://your-frontend-domain.com
 - POST /api/resumes/upload (multipart `file`)
 - GET /api/resumes/:id
 - DELETE /api/resumes/:id
+
+Passwords must be between 8 and 128 characters. `JWT_SECRET` must be at least
+32 characters and should be generated randomly.

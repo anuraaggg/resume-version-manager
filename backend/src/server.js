@@ -11,8 +11,8 @@ if (!process.env.MONGO_URI) {
   process.exit(1);
 }
 
-if (!process.env.JWT_SECRET) {
-  console.error("ERROR: JWT_SECRET environment variable is not set");
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+  console.error("ERROR: JWT_SECRET must be set and at least 32 characters long");
   process.exit(1);
 }
 
