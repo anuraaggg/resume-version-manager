@@ -44,6 +44,8 @@ export default function UploadResume({ onUpload }) {
   const [notes, setNotes] = useState("");
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   /* Toggle preset tag */
   const toggleTag = (tag) => {
@@ -71,10 +73,12 @@ export default function UploadResume({ onUpload }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!title || !file) {
-      alert("Title and PDF are required");
+      setError("Title and PDF are required");
       return;
     }
 
+    setError("");
+    setSuccess("");
     const formData = new FormData();
     formData.append("title", title.trim());
     formData.append("company", company.trim());
@@ -86,7 +90,7 @@ export default function UploadResume({ onUpload }) {
     try {
       setLoading(true);
       await api.post("/resumes/upload", formData);
-      onUpload();
+      await onUpload();
 
       setTitle("");
       setCompany("");
@@ -95,8 +99,9 @@ export default function UploadResume({ onUpload }) {
       setCustomTags("");
       setNotes("");
       setFile(null);
+      setSuccess("Resume uploaded successfully.");
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to upload resume");
+      setError(err.response?.data?.message || "Failed to upload resume");
     } finally {
       setLoading(false);
     }
@@ -108,6 +113,8 @@ export default function UploadResume({ onUpload }) {
       className="bg-black border border-gray-800 rounded-xl shadow-lg p-5 mb-6"
     >
       <h2 className="text-lg font-bold text-white mb-4">Upload Resume</h2>
+      {error && <p className="mb-4 rounded-lg border border-red-900 bg-red-950/40 p-3 text-sm text-red-200">{error}</p>}
+      {success && <p className="mb-4 rounded-lg border border-green-900 bg-green-950/40 p-3 text-sm text-green-200">{success}</p>}
 
       {/* Basic Info */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
@@ -203,7 +210,22 @@ export default function UploadResume({ onUpload }) {
           <input
             type="file"
             accept="application/pdf"
-            onChange={(e) => setFile(e.target.files[0])}
+            onChange={(e) => {
+              const selectedFile = e.target.files[0];
+              if (!selectedFile) return;
+              if (selectedFile.type !== "application/pdf") {
+                setError("Please choose a PDF file.");
+                setFile(null);
+                return;
+              }
+              if (selectedFile.size > 10 * 1024 * 1024) {
+                setError("PDF files must be 10MB or smaller.");
+                setFile(null);
+                return;
+              }
+              setError("");
+              setFile(selectedFile);
+            }}
             className="hidden"
             required
           />
