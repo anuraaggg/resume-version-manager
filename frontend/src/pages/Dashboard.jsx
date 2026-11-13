@@ -19,36 +19,67 @@ function formatMonthYear(value) {
 export default function Dashboard() {
   const [resumes, setResumes] = useState([]);
   const [expandedTitles, setExpandedTitles] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [busyId, setBusyId] = useState("");
 
   const toggleExpanded = (title) =>
     setExpandedTitles((prev) => ({ ...prev, [title]: !prev[title] }));
 
   const fetchResumes = async () => {
-    const res = await api.get("/resumes");
-    setResumes(res.data);
+    try {
+      setError("");
+      const res = await api.get("/resumes");
+      setResumes(res.data);
+    } catch (requestError) {
+      setError(requestError.response?.data?.message || "Failed to load resumes");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDelete = async (id) => {
     if (!confirm("Delete this resume version?")) return;
-    await api.delete(`/resumes/${id}`);
-    fetchResumes();
+    try {
+      setBusyId(id);
+      setError("");
+      await api.delete(`/resumes/${id}`);
+      await fetchResumes();
+    } catch (requestError) {
+      setError(requestError.response?.data?.message || "Failed to delete resume");
+    } finally {
+      setBusyId("");
+    }
   };
 
   const handleView = async (id) => {
     // Open the tab synchronously (in the click's call stack) so browsers
     // don't treat the later navigation as a blocked popup.
     const viewer = window.open("", "_blank");
-    const res = await api.get(`/resumes/${id}/url`);
-    if (viewer) viewer.location = res.data.url;
+    try {
+      setBusyId(id);
+      setError("");
+      const res = await api.get(`/resumes/${id}/url`);
+      if (viewer) viewer.location = res.data.url;
+    } catch (requestError) {
+      if (viewer) viewer.close();
+      setError(requestError.response?.data?.message || "Failed to open resume");
+    } finally {
+      setBusyId("");
+    }
   };
 
   useEffect(() => {
     let ignore = false;
 
     const loadResumes = async () => {
-      const res = await api.get("/resumes");
-      if (!ignore) {
-        setResumes(res.data);
+      try {
+        const res = await api.get("/resumes");
+        if (!ignore) setResumes(res.data);
+      } catch (requestError) {
+        if (!ignore) setError(requestError.response?.data?.message || "Failed to load resumes");
+      } finally {
+        if (!ignore) setLoading(false);
       }
     };
 
@@ -99,8 +130,27 @@ export default function Dashboard() {
         {/* Upload */}
         <UploadResume onUpload={fetchResumes} />
 
+        {error && (
+          <div className="mb-6 flex items-center justify-between gap-4 rounded-xl border border-red-900 bg-red-950/40 p-4 text-sm text-red-200">
+            <span>{error}</span>
+            <button
+              type="button"
+              onClick={fetchResumes}
+              className="shrink-0 rounded-lg border border-red-800 px-3 py-1.5 text-xs hover:bg-red-900/40"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
+        {loading && (
+          <div className="rounded-xl border border-gray-800 p-6 text-gray-300">
+            Loading resumes...
+          </div>
+        )}
+
         {/* Empty */}
-        {resumes.length === 0 && (
+        {!loading && !error && resumes.length === 0 && (
           <div className="bg-black border border-gray-800 p-6 rounded-xl text-gray-300">
             No resumes uploaded yet.
           </div>
@@ -165,6 +215,7 @@ export default function Dashboard() {
         <div className="px-6 py-4 flex gap-3">
           <button
             onClick={() => handleView(latest._id)}
+            disabled={busyId === latest._id}
             className="flex-1 px-4 py-2.5 bg-gray-900 hover:bg-gray-800 border border-gray-700 hover:border-gray-600 text-white rounded-lg text-sm font-semibold transition-all transform hover:scale-105 active:scale-95"
           >
             View
@@ -172,6 +223,7 @@ export default function Dashboard() {
 
           <button
             onClick={() => handleDelete(latest._id)}
+            disabled={busyId === latest._id}
             className="flex-1 px-4 py-2.5 bg-black border border-gray-700 hover:border-gray-600 text-white rounded-lg text-sm font-semibold transition-all transform hover:scale-105 active:scale-95"
           >
             Delete
@@ -205,12 +257,14 @@ export default function Dashboard() {
                     <div className="flex gap-2 shrink-0">
                       <button
                         onClick={() => handleView(v._id)}
+                        disabled={busyId === v._id}
                         className="px-3 py-1.5 text-xs bg-gray-900 hover:bg-gray-800 border border-gray-700 text-white rounded-lg transition-all"
                       >
                         View
                       </button>
                       <button
                         onClick={() => handleDelete(v._id)}
+                        disabled={busyId === v._id}
                         className="px-3 py-1.5 text-xs bg-black hover:bg-gray-900 border border-gray-700 text-white rounded-lg transition-all"
                       >
                         Delete
