@@ -1,5 +1,6 @@
 const Resume = require("../models/Resume");
 const cloudinary = require("../config/cloudinary");
+const crypto = require("crypto");
 
 const MAX_TITLE_LENGTH = 120;
 const MAX_COMPANY_LENGTH = 120;
@@ -95,7 +96,8 @@ exports.uploadResume = async (req, res, next) => {
         title: normalizedTitle,
       }).sort({ version: -1 });
       const nextVersion = latestResume ? latestResume.version + 1 : 1;
-      const publicId = `${req.userId}_${safeTitle}_v${nextVersion}`;
+      const uploadId = crypto.randomBytes(16).toString("hex");
+      const publicId = `${req.userId}_${safeTitle}_v${nextVersion}_${uploadId}`;
       const uploadResult = await streamUpload(publicId);
       uploadedPublicId = uploadResult.public_id;
 
