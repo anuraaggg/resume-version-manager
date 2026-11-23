@@ -1,7 +1,10 @@
 const Resume = require("../models/Resume");
 const cloudinary = require("../config/cloudinary");
 const crypto = require("crypto");
+const mongoose = require("mongoose");
 
+const DEFAULT_PAGE_SIZE = 10;
+const MAX_PAGE_SIZE = 50;
 const MAX_TITLE_LENGTH = 120;
 const MAX_COMPANY_LENGTH = 120;
 const MAX_NOTES_LENGTH = 5000;
@@ -140,12 +143,75 @@ exports.uploadResume = async (req, res, next) => {
 // ===============================
 exports.getUserResumes = async (req, res, next) => {
   try {
-    const resumes = await Resume.find({ userId: req.userId }).sort({
-      appliedDate: -1,
-      version: -1,
-    });
+    const parsePositiveInteger = (value, fallback) => {
+      if (value === undefined) return fallback;
+      if (typeof value !== "string" || !/^[1-9]\d*$/.test(value)) return null;
 
-    res.json(resumes);
+      const parsed = Number(value);
+      return Number.isSafeInteger(parsed) ? parsed : null;
+    };
+
+    const page = parsePositiveInteger(req.query.page, 1);
+    const requestedPageSize = parsePositiveInteger(req.query.limit, DEFAULT_PAGE_SIZE);
+    if (!page || !requestedPageSize || requestedPageSize > MAX_PAGE_SIZE) {
+      return res.status(400).json({
+        message: `Page must be a positive integer and limit must be between 1 and ${MAX_PAGE_SIZE}`,
+      });
+    }
+
+    const [pageResult] = await Resume.aggregate([
+      { $match: { userId: new mongoose.Types.ObjectId(req.userId) } },
+      { $sort: { version: -1, updatedAt: -1 } },
+      {
+        $group: {
+          _id: "$title",
+          latestAppliedDate: { $first: "$appliedDate" },
+          latestVersion: { $first: "$version" },
+          latestUpdatedAt: { $first: "$updatedAt" },
+        },
+      },
+      {
+        $sort: {
+          latestAppliedDate: -1,
+          latestVersion: -1,
+          latestUpdatedAt: -1,
+          _id: 1,
+        },
+      },
+      {
+        $facet: {
+          metadata: [{ $count: "totalGroups" }],
+          titles: [
+            { $skip: (page - 1) * requestedPageSize },
+            { $limit: requestedPageSize },
+          ],
+        },
+      },
+    ]);
+
+    const totalGroups = pageResult?.metadata[0]?.totalGroups || 0;
+    const titles = pageResult?.titles.map(({ _id }) => _id) || [];
+    const resumes = titles.length
+      ? await Resume.find({ userId: req.userId, title: { $in: titles } }).sort({
+        appliedDate: -1,
+        version: -1,
+      })
+      : [];
+    const titleOrder = new Map(titles.map((title, index) => [title, index]));
+    resumes.sort((left, right) =>
+      titleOrder.get(left.title) - titleOrder.get(right.title)
+      || right.version - left.version
+    );
+
+    res.json({
+      resumes,
+      pagination: {
+        page,
+        limit: requestedPageSize,
+        totalGroups,
+        totalPages: Math.ceil(totalGroups / requestedPageSize),
+      },
+    });
   } catch (error) {
     next(error);
   }

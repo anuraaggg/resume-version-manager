@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import api from "../services/api";
 import UploadResume from "../components/UploadResume";
 import Squares from "../components/Squares";
+
+const PAGE_SIZE = 10;
 
 /* Safe date formatter */
 function formatMonthYear(value) {
@@ -22,21 +24,40 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState("");
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: PAGE_SIZE,
+    totalGroups: 0,
+    totalPages: 0,
+  });
 
   const toggleExpanded = (title) =>
     setExpandedTitles((prev) => ({ ...prev, [title]: !prev[title] }));
 
-  const fetchResumes = async () => {
+  const fetchResumes = useCallback(async (requestedPage = page, signal) => {
+    setLoading(true);
     try {
       setError("");
-      const res = await api.get("/resumes");
-      setResumes(res.data);
+      const res = await api.get("/resumes", {
+        params: { page: requestedPage, limit: PAGE_SIZE },
+        signal,
+      });
+
+      if (requestedPage > res.data.pagination.totalPages && requestedPage > 1) {
+        setPage(Math.max(1, res.data.pagination.totalPages));
+        return;
+      }
+
+      setResumes(res.data.resumes);
+      setPagination(res.data.pagination);
     } catch (requestError) {
+      if (signal?.aborted) return;
       setError(requestError.response?.data?.message || "Failed to load resumes");
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
-  };
+  }, [page]);
 
   const handleDelete = async (id) => {
     if (!confirm("Delete this resume version?")) return;
@@ -70,25 +91,11 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    let ignore = false;
+    const controller = new AbortController();
+    fetchResumes(page, controller.signal);
 
-    const loadResumes = async () => {
-      try {
-        const res = await api.get("/resumes");
-        if (!ignore) setResumes(res.data);
-      } catch (requestError) {
-        if (!ignore) setError(requestError.response?.data?.message || "Failed to load resumes");
-      } finally {
-        if (!ignore) setLoading(false);
-      }
-    };
-
-    loadResumes();
-
-    return () => {
-      ignore = true;
-    };
-  }, []);
+    return () => controller.abort();
+  }, [fetchResumes, page]);
 
   /* Group by title */
   const resumesByTitle = resumes.reduce((acc, r) => {
@@ -280,6 +287,33 @@ export default function Dashboard() {
     );
   })}
 </div>
+
+        {pagination.totalPages > 1 && (
+          <nav
+            aria-label="Resume pages"
+            className="mt-8 flex items-center justify-center gap-4 text-sm text-gray-300"
+          >
+            <button
+              type="button"
+              onClick={() => setPage((currentPage) => currentPage - 1)}
+              disabled={page <= 1 || loading}
+              className="rounded-lg border border-gray-700 px-4 py-2 hover:bg-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Previous
+            </button>
+            <span>
+              Page {page} of {pagination.totalPages}
+            </span>
+            <button
+              type="button"
+              onClick={() => setPage((currentPage) => currentPage + 1)}
+              disabled={page >= pagination.totalPages || loading}
+              className="rounded-lg border border-gray-700 px-4 py-2 hover:bg-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Next
+            </button>
+          </nav>
+        )}
 
       </div>
     </div>
