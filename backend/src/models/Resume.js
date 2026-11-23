@@ -48,11 +48,27 @@ const resumeSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+
+    deletedAt: {
+      type: Date,
+      default: null,
+    },
+
+    deletionAttempts: {
+      type: Number,
+      default: 0,
+    },
+
+    deletionRetryAt: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true }
 );
 
 resumeSchema.index({ userId: 1, title: 1, version: 1 }, { unique: true });
 resumeSchema.index({ userId: 1, appliedDate: -1, version: -1 });
+resumeSchema.index({ deletedAt: 1, deletionRetryAt: 1 });
 
 module.exports = mongoose.model("Resume", resumeSchema);

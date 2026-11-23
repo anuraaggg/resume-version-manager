@@ -2,8 +2,10 @@ require("dotenv").config();
 
 const app = require("./app");
 const connectDB = require("./config/db");
+const { processPendingResumeDeletions } = require("./services/resume-deletion.service");
 
 const PORT = process.env.PORT || 5000;
+const DELETION_RETRY_INTERVAL_MS = 60 * 1000;
 
 // Validate required env vars
 if (!process.env.MONGO_URI) {
@@ -30,6 +32,25 @@ process.on("uncaughtException", (error) => {
 
 const startServer = async () => {
   await connectDB();
+
+  let deletionSweepRunning = false;
+  const runDeletionSweep = async () => {
+    if (deletionSweepRunning) return;
+
+    deletionSweepRunning = true;
+    try {
+      await processPendingResumeDeletions();
+    } catch (error) {
+      console.error("RESUME DELETION SWEEP ERROR:", error);
+    } finally {
+      deletionSweepRunning = false;
+    }
+  };
+
+  runDeletionSweep();
+  const deletionRetryTimer = setInterval(runDeletionSweep, DELETION_RETRY_INTERVAL_MS);
+  deletionRetryTimer.unref();
+
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
   });

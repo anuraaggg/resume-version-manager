@@ -37,5 +37,8 @@ The resume list is paginated by title group. `page` defaults to 1 and `limit`
 defaults to 10 (maximum 50); the response includes `resumes` and pagination
 metadata (`page`, `limit`, `totalGroups`, and `totalPages`).
 
+Resume deletion hides the record immediately and retries Cloudinary cleanup in
+the background with capped exponential backoff if the storage request fails.
+
 Passwords must be between 8 and 128 characters. `JWT_SECRET` must be at least
 32 characters and should be generated randomly.

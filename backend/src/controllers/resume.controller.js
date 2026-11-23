@@ -2,6 +2,7 @@ const Resume = require("../models/Resume");
 const cloudinary = require("../config/cloudinary");
 const crypto = require("crypto");
 const mongoose = require("mongoose");
+const { processResumeDeletion } = require("../services/resume-deletion.service");
 
 const DEFAULT_PAGE_SIZE = 10;
 const MAX_PAGE_SIZE = 50;
@@ -160,7 +161,12 @@ exports.getUserResumes = async (req, res, next) => {
     }
 
     const [pageResult] = await Resume.aggregate([
-      { $match: { userId: new mongoose.Types.ObjectId(req.userId) } },
+      {
+        $match: {
+          userId: new mongoose.Types.ObjectId(req.userId),
+          deletedAt: null,
+        },
+      },
       { $sort: { version: -1, updatedAt: -1 } },
       {
         $group: {
@@ -192,10 +198,14 @@ exports.getUserResumes = async (req, res, next) => {
     const totalGroups = pageResult?.metadata[0]?.totalGroups || 0;
     const titles = pageResult?.titles.map(({ _id }) => _id) || [];
     const resumes = titles.length
-      ? await Resume.find({ userId: req.userId, title: { $in: titles } }).sort({
-        appliedDate: -1,
-        version: -1,
-      })
+      ? await Resume.find({
+        userId: req.userId,
+        title: { $in: titles },
+        deletedAt: null,
+      }).sort({
+          appliedDate: -1,
+          version: -1,
+        })
       : [];
     const titleOrder = new Map(titles.map((title, index) => [title, index]));
     resumes.sort((left, right) =>
@@ -224,7 +234,11 @@ exports.getResumeUrl = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const resume = await Resume.findOne({ _id: id, userId: req.userId });
+    const resume = await Resume.findOne({
+      _id: id,
+      userId: req.userId,
+      deletedAt: null,
+    });
 
     if (!resume) {
       return res.status(404).json({ message: "Resume not found" });
@@ -251,26 +265,18 @@ exports.deleteResumeVersion = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const resume = await Resume.findOneAndDelete({
-      _id: id,
-      userId: req.userId,
-    });
+    const deletedAt = new Date();
+    const resume = await Resume.findOneAndUpdate(
+      { _id: id, userId: req.userId, deletedAt: null },
+      { $set: { deletedAt, deletionRetryAt: deletedAt } },
+      { new: true }
+    );
 
     if (!resume) {
       return res.status(404).json({ message: "Resume not found" });
     }
 
-    // Delete from Cloudinary
-    if (resume.publicId) {
-      try {
-        await cloudinary.uploader.destroy(resume.publicId, {
-          resource_type: "raw",
-          type: "authenticated",
-        });
-      } catch (cloudinaryError) {
-        console.warn("Failed to delete file from Cloudinary:", cloudinaryError);
-      }
-    }
+    await processResumeDeletion(resume);
 
     res.json({ message: "Resume version deleted" });
   } catch (error) {
